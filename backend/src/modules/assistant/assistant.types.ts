@@ -4,6 +4,7 @@ export type AssistantIntent = 'record_expense' | 'expense_query' | 'confirm' | '
 export type AssistantStatus = 'collecting' | 'awaiting_confirmation' | 'saved' | 'cancelled' | 'answered' | 'needs_clarification';
 
 export interface TransactionDraft {
+  draftId: string;
   amountMinor?: number;
   currency: string;
   categoryId?: string;
