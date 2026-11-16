@@ -1,8 +1,8 @@
-import { AIMessage, HumanMessage } from '@langchain/core/messages';
-import { logger } from '../../core/utils/logger.js';
+import { randomUUID } from 'node:crypto';
+import { AIMessage } from '@langchain/core/messages';
 import { assistantLlm } from './assistant.llm.js';
 import { assistantTools } from './assistant.tools.js';
-import type { AssistantStateType, } from './assistant.state.js';
+import type { AssistantStateType } from './assistant.state.js';
 import type { TransactionDraft } from './assistant.types.js';
 
 const formatRupees = (minor: number) => (minor / 100).toLocaleString('en-IN', {
@@ -11,14 +11,15 @@ const formatRupees = (minor: number) => (minor / 100).toLocaleString('en-IN', {
 });
 
 const mergeDraft = (previous: TransactionDraft | null, incoming: Record<string, unknown>): TransactionDraft => {
-  const draft: TransactionDraft = { ...(previous ?? { currency: 'INR' }) };
+  const draft: TransactionDraft = previous
+    ? { ...previous }
+    : { draftId: randomUUID(), currency: 'INR' };
+
   if (typeof incoming.amount === 'number' && Number.isFinite(incoming.amount) && incoming.amount > 0) {
     const minor = Math.round(incoming.amount * 100);
     if (Number.isSafeInteger(minor) && minor > 0) draft.amountMinor = minor;
   }
   if (typeof incoming.currency === 'string') draft.currency = incoming.currency.toUpperCase();
-  if (typeof incoming.categoryId === 'string') draft.categoryId = incoming.categoryId;
-  if (typeof incoming.categoryName === 'string') draft.categoryName = incoming.categoryName;
   if (typeof incoming.description === 'string' && incoming.description.trim()) draft.description = incoming.description.trim();
   if (typeof incoming.transactionDate === 'string') draft.transactionDate = incoming.transactionDate;
   if (typeof incoming.paymentMethod === 'string') draft.paymentMethod = incoming.paymentMethod as TransactionDraft['paymentMethod'];
@@ -27,21 +28,28 @@ const mergeDraft = (previous: TransactionDraft | null, incoming: Record<string, 
 };
 
 export const understandMessageNode = async (state: AssistantStateType) => {
-  const extracted = await assistantLlm.extract(state.messages.at(-1)?.content?.toString() ?? '', state.timezone, state.locale);
+  const message = state.messages.at(-1)?.content?.toString() ?? '';
+  const extracted = await assistantLlm.extract(message, state.timezone, state.locale);
   let intent = extracted.intent;
 
-  // Pending confirmation is application state, not a model decision.
-  if (state.status === 'awaiting_confirmation' && state.pendingTransaction) {
-    const text = state.messages.at(-1)?.content?.toString().trim().toLowerCase() ?? '';
+  // Confirmation/cancellation is deterministic and only valid for a pending transaction.
+  if (state.pendingTransaction && state.status === 'awaiting_confirmation') {
+    const text = message.trim().toLowerCase();
     if (/^(yes|yes please|confirm|save|save it|correct|proceed|okay)$/i.test(text)) intent = 'confirm';
     else if (/^(no|cancel|discard|forget it|don't save|do not save)$/i.test(text)) intent = 'cancel';
+    else if (extracted.amount !== null || extracted.category !== null || extracted.description !== null) intent = 'record_expense';
+  } else if (state.pendingTransaction && state.status === 'collecting') {
+    // A short answer such as "Groceries" fills the currently incomplete transaction.
+    intent = 'record_expense';
   }
+
   return { extracted: extracted as unknown as Record<string, unknown>, intent };
 };
 
 export const collectTransactionNode = async (state: AssistantStateType) => {
   const extracted = state.extracted ?? {};
   const candidate = mergeDraft(state.pendingTransaction, extracted);
+
   if (typeof extracted.category === 'string') {
     const category = await assistantTools.resolveCategory(state.userId, extracted.category);
     if (category) {
@@ -53,20 +61,27 @@ export const collectTransactionNode = async (state: AssistantStateType) => {
     }
   }
 
+  // The category is a useful, grounded description when the user did not dictate one.
+  if (!candidate.description && candidate.categoryId && candidate.categoryName) {
+    candidate.description = candidate.categoryName;
+  }
+
   const missing: string[] = [];
   if (!candidate.amountMinor) missing.push('amount');
   if (!candidate.categoryId) missing.push('category');
   if (!candidate.description) missing.push('description');
 
   if (missing.length) {
-    const question = missing.length === 1
-      ? `What is the ${missing[0]}?`
-      : `I have the details so far. What is the ${missing.join(' and ')}?`;
+    const reply = missing.includes('category')
+      ? `I couldn't match that to one of your categories. Which category should I use?`
+      : missing.includes('amount')
+        ? 'How much did you spend?'
+        : 'What was this expense for?';
     return {
       pendingTransaction: candidate,
       status: 'collecting' as const,
-      reply: question,
-      messages: [new AIMessage(question)],
+      reply,
+      messages: [new AIMessage(reply)],
     };
   }
 
@@ -128,16 +143,11 @@ export const expenseQueryNode = async (state: AssistantStateType) => {
     reply = `You have spent ₹${formatRupees(summary.monthTotalMinor)} this month across ${summary.monthTransactionCount} transactions. Today's total is ₹${formatRupees(summary.todayTotalMinor)}.`;
   }
 
-  // Read-only queries do not clear or overwrite a pending expense.
+  // A read-only query never changes the pending transaction or its status.
   return { queryResult: result, reply, status: state.status, pendingTransaction: state.pendingTransaction, messages: [new AIMessage(reply)] };
 };
 
 export const generalNode = async () => {
   const reply = 'I can record an expense or answer questions about your spending. For example, say “I spent 500 on groceries”.';
   return { reply, status: 'collecting' as const, messages: [new AIMessage(reply)] };
-};
-
-export const logNodeError = (error: unknown) => {
-  logger.error({ error }, 'Assistant graph node failed');
-  throw error;
 };
