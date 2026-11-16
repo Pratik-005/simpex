@@ -47,17 +47,30 @@ export class AssistantTools {
       throw new BadRequestError('The expense is incomplete and cannot be saved');
     }
 
-    const { expense } = await expenseService.createExpense(userId, {
-      amountMinor: draft.amountMinor,
-      currency: draft.currency || 'INR',
-      categoryId: draft.categoryId,
-      description: draft.description.trim(),
-      transactionDate: draft.transactionDate ? new Date(draft.transactionDate) : new Date(),
-      paymentMethod: draft.paymentMethod || 'UPI',
-      notes: draft.notes,
-    }, `assistant-${draft.draftId}`);
-
-    return expense;
+    const idempotencyKey = `assistant-${draft.draftId}`;
+    try {
+      const { expense } = await expenseService.createExpense(userId, {
+        amountMinor: draft.amountMinor,
+        currency: draft.currency || 'INR',
+        categoryId: draft.categoryId,
+        description: draft.description.trim(),
+        transactionDate: draft.transactionDate ? new Date(draft.transactionDate) : new Date(),
+        paymentMethod: draft.paymentMethod || 'UPI',
+        notes: draft.notes,
+      }, idempotencyKey);
+      return expense;
+    } catch (error) {
+      // A concurrent retry can pass the service's pre-check at the same time.
+      // The unique (userId, idempotencyKey) index is the final guard.
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 11000) {
+        const existing = await Expense.findOne({
+          userId: new mongoose.Types.ObjectId(userId),
+          idempotencyKey,
+        }).populate('categoryId', 'name color icon');
+        if (existing) return existing;
+      }
+      throw error;
+    }
   }
 
   async spendingSummary(userId: string) {
