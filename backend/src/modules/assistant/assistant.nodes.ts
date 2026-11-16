@@ -147,7 +147,12 @@ export const expenseQueryNode = async (state: AssistantStateType) => {
   return { queryResult: result, reply, status: state.status, pendingTransaction: state.pendingTransaction, messages: [new AIMessage(reply)] };
 };
 
-export const generalNode = async () => {
+export const generalNode = async (state: AssistantStateType) => {
   const reply = 'I can record an expense or answer questions about your spending. For example, say “I spent 500 on groceries”.';
-  return { reply, status: 'collecting' as const, messages: [new AIMessage(reply)] };
+  return {
+    reply,
+    status: state.status,
+    pendingTransaction: state.pendingTransaction,
+    messages: [new AIMessage(reply)],
+  };
 };
