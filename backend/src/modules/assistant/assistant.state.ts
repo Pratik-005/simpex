@@ -4,10 +4,10 @@ import type { AssistantIntent, AssistantStatus, TransactionDraft } from './assis
 
 export const AssistantState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
-    reducer: messagesStateReducer,
+    reducer: (current, update) => messagesStateReducer(current.slice(-12), update),
     default: () => [],
   }),
-  // These values are supplied by authenticated server code, never by the model.
+  // Trusted values are inserted by the authenticated controller; the LLM never writes these.
   userId: Annotation<string>(),
   conversationId: Annotation<string>(),
   timezone: Annotation<string>(),
