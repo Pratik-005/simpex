@@ -1,0 +1,43 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: simpex-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - API_PREFIX=/api/v1
+      - CORS_ORIGIN=*
+      - MONGODB_URI=mongodb://mongodb:27017/simpex_db
+      - JWT_SECRET=super_secret_jwt_key_production_32_characters_long_min
+      - JWT_EXPIRES_IN=15m
+      - REFRESH_TOKEN_SECRET=super_secret_refresh_key_production_32_characters_long_min
+      - REFRESH_TOKEN_EXPIRES_IN=7d
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - SLM_MODEL_NAME=qwen2.5:7b
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  mongodb:
+    image: mongo:7.0-jammy
+    container_name: simpex-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  mongo_data:
+    driver: local

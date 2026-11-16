@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+jspm_packages/
+
+# Production Builds & Output
+dist/
+build/
+out/
+
+# Environment Variables & Local Config
+.env
+.env.local
+.env.production
+
+# Logs & Runtime Data
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+*.pid
+*.seed
+*.pid.lock
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+
+# OS / Misc
+.DS_Store

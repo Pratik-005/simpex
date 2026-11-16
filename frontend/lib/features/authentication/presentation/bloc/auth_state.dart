@@ -1,0 +1,41 @@
+import 'package:equatable/equatable.dart';
+import '../../domain/models/auth_user.dart';
+
+abstract class AuthState extends Equatable {
+  const AuthState();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class AuthInitial extends AuthState {
+  const AuthInitial();
+}
+
+class AuthLoading extends AuthState {
+  final String? message;
+  const AuthLoading({this.message});
+
+  @override
+  List<Object?> get props => [message];
+}
+
+class Authenticated extends AuthState {
+  final AuthUser user;
+  const Authenticated(this.user);
+
+  @override
+  List<Object?> get props => [user];
+}
+
+class Unauthenticated extends AuthState {
+  const Unauthenticated();
+}
+
+class AuthFailure extends AuthState {
+  final String message;
+  const AuthFailure(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}
