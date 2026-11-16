@@ -1,5 +1,4 @@
 import { StateGraph, START, END } from '@langchain/langgraph';
-import { MongoDBSaver } from '@langchain/langgraph-checkpoint-mongodb';
 import { assistantStateClient } from './persistence/assistant.checkpointer.js';
 import { AssistantState } from './assistant.state.js';
 import {
