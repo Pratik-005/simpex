@@ -55,8 +55,7 @@ export class AssistantTools {
       transactionDate: draft.transactionDate ? new Date(draft.transactionDate) : new Date(),
       paymentMethod: draft.paymentMethod || 'UPI',
       notes: draft.notes,
-      idempotencyKey: undefined,
-    }, `assistant-${new mongoose.Types.ObjectId().toString()}`);
+    }, `assistant-${draft.draftId}`);
 
     return expense;
   }
@@ -65,8 +64,8 @@ export class AssistantTools {
     return analyticsService.getSpendingSummary(userId);
   }
 
-  async categoryBreakdown(userId: string, start?: Date, end?: Date) {
-    return analyticsService.getCategoryBreakdown(userId, start, end);
+  async categoryBreakdown(userId: string) {
+    return analyticsService.getCategoryBreakdown(userId);
   }
 
   async largestExpenses(userId: string, limit = 5) {
@@ -77,10 +76,11 @@ export class AssistantTools {
   }
 
   async searchExpenses(userId: string, searchTerm: string) {
+    const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return Expense.find({
       userId: new mongoose.Types.ObjectId(userId),
       status: 'active',
-      description: { $regex: searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' },
+      description: { $regex: escaped, $options: 'i' },
     }).sort({ transactionDate: -1 }).limit(10).populate('categoryId', 'name');
   }
 }
