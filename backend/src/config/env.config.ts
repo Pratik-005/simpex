@@ -13,8 +13,8 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string(),
   REFRESH_TOKEN_SECRET: z.string().min(16, 'REFRESH_TOKEN_SECRET must be at least 16 characters'),
   REFRESH_TOKEN_EXPIRES_IN: z.string(),
-  OLLAMA_BASE_URL: z.string().url(),
-  SLM_MODEL_NAME: z.string(),
+  NVIDIA_API_KEY: z.string().min(1, 'NVIDIA_API_KEY is required'),
+  NVIDIA_MODEL_NAME: z.string().default('nvidia/nemotron-3.5-super-vl-120b-a12b'),
 });
 
 const parseEnv = () => {
