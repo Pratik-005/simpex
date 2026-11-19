@@ -7,6 +7,7 @@ import type { TransactionDraft } from './assistant.types.js';
 import { BadRequestError } from '../../core/errors/app-error.js';
 
 export class AssistantTools {
+
   async getCategories(userId: string) {
     const userObjectId = new mongoose.Types.ObjectId(userId);
     return Category.find({

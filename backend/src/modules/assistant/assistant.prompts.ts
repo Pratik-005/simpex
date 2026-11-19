@@ -29,3 +29,4 @@ export const CLARIFICATION_PROMPT = `
 Write one concise question asking only for the missing required expense details.
 Required fields are amount, category, and a useful description. Do not claim an expense has been saved.
 `.trim();
+

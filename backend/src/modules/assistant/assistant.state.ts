@@ -12,15 +12,35 @@ export const AssistantState = Annotation.Root({
   conversationId: Annotation<string>(),
   timezone: Annotation<string>(),
   locale: Annotation<string>(),
-  intent: Annotation<AssistantIntent>({ default: () => 'general' }),
-  extracted: Annotation<Record<string, unknown> | null>({ default: () => null }),
+  intent: Annotation<AssistantIntent>({
+    reducer: (_, update) => update,
+    default: () => 'general',
+  }),
+  extracted: Annotation<Record<string, unknown> | null>({
+    reducer: (_, update) => update,
+    default: () => null
+  }),
   pendingTransaction: Annotation<TransactionDraft | null>({
     reducer: (_previous, update) => update,
     default: () => null,
   }),
-  status: Annotation<AssistantStatus>({ default: () => 'collecting' }),
-  reply: Annotation<string>({ default: () => '' }),
-  queryResult: Annotation<unknown>({ default: () => null }),
+  status: Annotation<AssistantStatus>({
+    reducer: (_, update) => update,
+    default: () => 'collecting'
+  }),
+  reply: Annotation<string>({
+    reducer: (_, update) => update, default: () => ''
+  }),
+  queryResult: Annotation<unknown>({
+    reducer: (_, update) => update,
+    default: () => null
+  }),
 });
 
 export type AssistantStateType = typeof AssistantState.State;
+
+
+
+
+
+

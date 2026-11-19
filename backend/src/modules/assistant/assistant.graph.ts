@@ -1,4 +1,5 @@
 import { StateGraph, START, END } from '@langchain/langgraph';
+import { HumanMessage } from '@langchain/core/messages';
 import { assistantStateClient } from './persistence/assistant.checkpointer.js';
 import { AssistantState } from './assistant.state.js';
 import {
@@ -62,7 +63,7 @@ export const invokeAssistantGraph = async (input: AssistantInput): Promise<Assis
     conversationId: input.conversationId,
     timezone: input.timezone || 'Asia/Kolkata',
     locale: input.locale || 'en_IN',
-    messages: [{ role: 'user', content: input.message }],
+    messages: [new HumanMessage(input.message)],
   }, { configurable: { thread_id: threadId } });
 
   return {

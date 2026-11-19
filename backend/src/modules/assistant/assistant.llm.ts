@@ -1,3 +1,4 @@
+import OpenAI from 'openai';
 import { env } from '../../config/env.config.js';
 import { logger } from '../../core/utils/logger.js';
 import { EXTRACTION_SYSTEM_PROMPT } from './assistant.prompts.js';
@@ -18,38 +19,44 @@ const extractionSchema = z.object({
 
 export type ExtractedMessage = z.infer<typeof extractionSchema>;
 
+const openai = new OpenAI({
+  apiKey: env.NVIDIA_API_KEY,
+  baseURL: 'https://integrate.api.nvidia.com/v1',
+});
+
 export class AssistantLlm {
+
   async extract(message: string, timezone: string, locale: string): Promise<ExtractedMessage> {
     const now = new Date().toLocaleString('en-US', { timeZone: timezone });
-    const response = await fetch(new URL('/api/chat', env.OLLAMA_BASE_URL), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      signal: AbortSignal.timeout(25_000),
-      body: JSON.stringify({
-        model: env.SLM_MODEL_NAME,
-        stream: false,
-        format: 'json',
-        messages: [
-          { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
-          { role: 'user', content: JSON.stringify({ message, currentLocalDateTime: now, timezone, locale }) },
-        ],
-        options: { temperature: 0 },
-      }),
+
+    const completion = await openai.chat.completions.create({
+      model: env.NVIDIA_MODEL_NAME,
+      messages: [
+        { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
+        {
+          role: 'user',
+          content: JSON.stringify({ message, currentLocalDateTime: now, timezone, locale }),
+        },
+      ],
+      temperature: 0,
+      max_tokens: 1024,
+      response_format: { type: 'json_object' },
     });
 
-    if (!response.ok) {
-      logger.error({ status: response.status }, 'Ollama extraction request failed');
-      throw new Error(`Assistant model returned HTTP ${response.status}`);
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      logger.error('NVIDIA model returned an empty response');
+      throw new Error('Assistant model returned an empty response');
     }
 
-    const payload = await response.json() as { message?: { content?: string } };
-    const content = payload.message?.content;
-    if (!content) throw new Error('Assistant model returned an empty response');
+    // Strip <think>...</think> blocks that some reasoning models emit
+    const cleaned = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
     let parsed: unknown;
     try {
-      parsed = JSON.parse(content);
+      parsed = JSON.parse(cleaned);
     } catch {
+      logger.error({ raw: cleaned }, 'NVIDIA model returned invalid JSON');
       throw new Error('Assistant model returned invalid JSON');
     }
     return extractionSchema.parse(parsed);

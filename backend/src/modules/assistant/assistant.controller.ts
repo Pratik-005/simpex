@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { assistantService } from './assistant.service.js';
-import { isValidTimezone } from './assistant.dates.js';
 import { UnauthorizedError } from '../../core/errors/app-error.js';
+import { isValidTimezone } from './assistant.validation.js';
 
 const chatMessageSchema = z.object({
   conversationId: z.string().trim().min(1, 'conversationId is required').max(100),
@@ -13,6 +13,7 @@ const chatMessageSchema = z.object({
 export class AssistantController {
   async handleChat(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+
       if (!req.user) throw new UnauthorizedError();
       const validated = chatMessageSchema.parse(req.body);
 
@@ -27,6 +28,7 @@ export class AssistantController {
         success: true,
         data: response,
       });
+
     } catch (err) {
       next(err);
     }
@@ -34,3 +36,4 @@ export class AssistantController {
 }
 
 export const assistantController = new AssistantController();
+

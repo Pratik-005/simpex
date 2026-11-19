@@ -29,3 +29,5 @@ export interface AssistantResponse {
   pendingTransaction: TransactionDraft | null;
   expense?: IExpense | null;
 }
+
+

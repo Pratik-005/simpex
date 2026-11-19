@@ -2,6 +2,7 @@ import { MongoDBSaver } from '@langchain/langgraph-checkpoint-mongodb';
 import mongoose from 'mongoose';
 
 class AssistantStateClient {
+
   private saver: MongoDBSaver | null = null;
   private setupPromise: Promise<MongoDBSaver> | null = null;
 
